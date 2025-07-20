@@ -25,29 +25,39 @@ Sound Match is a 3x2 grid memory game where players find matching pairs of sound
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - Modern web browser with Web Audio API support
 
 ### Installation
+
 \`\`\`bash
+
 # Clone the repository
-git clone https://github.com/yourusername/sound-match-game.git
+
+git clone https://github.com/Arnav-S-3/sound-match-game.git
 
 # Navigate to project directory
+
 cd sound-match-game
 
 # Install dependencies
-npm install
+
+npm install --legacy-peer-deps
 
 # Start development server
+
 npm run dev
 \`\`\`
 
 ### Deployment
+
 This project is optimized for deployment on Vercel:
 
 \`\`\`bash
+
 # Deploy to Vercel
+
 npx vercel --prod
 \`\`\`
 
@@ -73,12 +83,12 @@ npx vercel --prod
 
 ## 🎮 Controls
 
-| Key | Action |
-|-----|--------|
-| Arrow Keys | Navigate between tiles |
+| Key         | Action                     |
+| ----------- | -------------------------- |
+| Arrow Keys  | Navigate between tiles     |
 | Enter/Space | Select tile and play sound |
-| H | Help and instructions |
-| R | Restart game |
+| H           | Help and instructions      |
+| R           | Restart game               |
 
 ## 🔧 Browser Compatibility
 
