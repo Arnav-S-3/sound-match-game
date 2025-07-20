@@ -33,6 +33,39 @@ export default function SoundMatchGame() {
   const tileRefs = useRef<(HTMLButtonElement | null)[]>([])
   const speechSynthRef = useRef<SpeechSynthesis | null>(null)
 
+  // Enhanced speech synthesis helper with female voice
+  const speak = useCallback((text: string, delay = 0) => {
+    setTimeout(() => {
+      if (speechSynthRef.current) {
+        speechSynthRef.current.cancel()
+        const utterance = new SpeechSynthesisUtterance(text)
+
+        // Try to get a female voice
+        const voices = speechSynthRef.current.getVoices()
+        const femaleVoice = voices.find(
+          (voice) =>
+            voice.name.toLowerCase().includes("female") ||
+            voice.name.toLowerCase().includes("woman") ||
+            voice.name.toLowerCase().includes("samantha") ||
+            voice.name.toLowerCase().includes("karen") ||
+            voice.name.toLowerCase().includes("susan") ||
+            voice.gender === "female",
+        )
+
+        if (femaleVoice) {
+          utterance.voice = femaleVoice
+        }
+
+        // Adjust voice parameters for more feminine sound
+        utterance.pitch = 1.3 // Higher pitch for female voice
+        utterance.rate = 0.85 // Slightly slower for clarity
+        utterance.volume = 0.8
+
+        speechSynthRef.current.speak(utterance)
+      }
+    }, delay)
+  }, [])
+
   // Initialize audio context and speech synthesis
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -69,39 +102,33 @@ export default function SoundMatchGame() {
         "Sound Match game started! Use arrow keys to navigate and Enter or Space to select tiles. Find matching pairs of sounds!",
       )
     }, 500)
-  }, [])
 
-  // Enhanced speech synthesis helper with female voice
-  const speak = useCallback((text: string, delay = 0) => {
+    // Announce starting position
     setTimeout(() => {
-      if (speechSynthRef.current) {
-        speechSynthRef.current.cancel()
-        const utterance = new SpeechSynthesisUtterance(text)
+      speak("Starting at Tile 1", 0)
+    }, 1000)
+  }, [speak])
 
-        // Try to get a female voice
-        const voices = speechSynthRef.current.getVoices()
-        const femaleVoice = voices.find(
-          (voice) =>
-            voice.name.toLowerCase().includes("female") ||
-            voice.name.toLowerCase().includes("woman") ||
-            voice.name.toLowerCase().includes("samantha") ||
-            voice.name.toLowerCase().includes("karen") ||
-            voice.name.toLowerCase().includes("susan") ||
-            voice.gender === "female",
-        )
+  // Play navigation feedback sound
+  const playNavigationSound = useCallback(() => {
+    if (!audioContextRef.current) return
 
-        if (femaleVoice) {
-          utterance.voice = femaleVoice
-        }
+    const ctx = audioContextRef.current
+    const oscillator = ctx.createOscillator()
+    const gainNode = ctx.createGain()
 
-        // Adjust voice parameters for more feminine sound
-        utterance.pitch = 1.3 // Higher pitch for female voice
-        utterance.rate = 0.85 // Slightly slower for clarity
-        utterance.volume = 0.8
+    oscillator.connect(gainNode)
+    gainNode.connect(ctx.destination)
 
-        speechSynthRef.current.speak(utterance)
-      }
-    }, delay)
+    // Subtle navigation beep
+    oscillator.frequency.setValueAtTime(800, ctx.currentTime)
+    oscillator.type = "sine"
+
+    gainNode.gain.setValueAtTime(0.1, ctx.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1)
+
+    oscillator.start(ctx.currentTime)
+    oscillator.stop(ctx.currentTime + 0.1)
   }, [])
 
   // Play position tone for a tile
@@ -292,6 +319,17 @@ export default function SoundMatchGame() {
     }
   }, [])
 
+  // Announce current tile position
+  const announceCurrentTile = useCallback(
+    (tileIndex: number) => {
+      const tileNumber = tileIndex + 1
+      setTimeout(() => {
+        speak(`Tile ${tileNumber}`, 0)
+      }, 200) // Short delay after navigation sound
+    },
+    [speak],
+  )
+
   // Handle tile selection
   const selectTile = useCallback(
     (tileIndex: number) => {
@@ -394,31 +432,47 @@ export default function SoundMatchGame() {
       switch (key) {
         case "ArrowUp":
           event.preventDefault()
-          setGameState((prev) => ({
-            ...prev,
-            currentFocus: Math.max(0, prev.currentFocus - 3),
-          }))
+          setGameState((prev) => {
+            const newFocus = Math.max(0, prev.currentFocus - 3)
+            announceCurrentTile(newFocus)
+            return {
+              ...prev,
+              currentFocus: newFocus,
+            }
+          })
           break
         case "ArrowDown":
           event.preventDefault()
-          setGameState((prev) => ({
-            ...prev,
-            currentFocus: Math.min(5, prev.currentFocus + 3),
-          }))
+          setGameState((prev) => {
+            const newFocus = Math.min(5, prev.currentFocus + 3)
+            announceCurrentTile(newFocus)
+            return {
+              ...prev,
+              currentFocus: newFocus,
+            }
+          })
           break
         case "ArrowLeft":
           event.preventDefault()
-          setGameState((prev) => ({
-            ...prev,
-            currentFocus: Math.max(0, prev.currentFocus - 1),
-          }))
+          setGameState((prev) => {
+            const newFocus = Math.max(0, prev.currentFocus - 1)
+            announceCurrentTile(newFocus)
+            return {
+              ...prev,
+              currentFocus: newFocus,
+            }
+          })
           break
         case "ArrowRight":
           event.preventDefault()
-          setGameState((prev) => ({
-            ...prev,
-            currentFocus: Math.min(5, prev.currentFocus + 1),
-          }))
+          setGameState((prev) => {
+            const newFocus = Math.min(5, prev.currentFocus + 1)
+            announceCurrentTile(newFocus)
+            return {
+              ...prev,
+              currentFocus: newFocus,
+            }
+          })
           break
         case "Enter":
         case " ":
@@ -440,14 +494,18 @@ export default function SoundMatchGame() {
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [gameState.currentFocus, gameState.gameComplete, selectTile, initializeGame, speak])
+  }, [gameState.currentFocus, gameState.gameComplete, selectTile, initializeGame, speak, announceCurrentTile])
 
-  // Focus management
+  // Focus management with navigation sound
   useEffect(() => {
     if (tileRefs.current[gameState.currentFocus]) {
       tileRefs.current[gameState.currentFocus]?.focus()
+      // Play navigation sound when focus changes (but not on initial load)
+      if (gameState.tiles.length > 0) {
+        playNavigationSound()
+      }
     }
-  }, [gameState.currentFocus])
+  }, [gameState.currentFocus, playNavigationSound, gameState.tiles.length])
 
   // Initialize game on mount
   useEffect(() => {
@@ -514,7 +572,7 @@ export default function SoundMatchGame() {
           <strong>Accessibility Features:</strong>
         </p>
         <ul className="text-left space-y-1">
-          <li>• Full keyboard navigation</li>
+          <li>• Full keyboard navigation with audio feedback</li>
           <li>• Screen reader compatible</li>
           <li>• Audio-first gameplay</li>
           <li>• High contrast visual indicators</li>
