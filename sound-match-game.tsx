@@ -63,21 +63,92 @@ export default function SoundMatchGame() {
       gameComplete: false,
     })
 
-    // Announce game start
-    speak(
-      "Sound Match game started! Use arrow keys to navigate and Enter or Space to select tiles. Find matching pairs of sounds!",
-    )
+    // Delayed announcement of game start
+    setTimeout(() => {
+      speak(
+        "Sound Match game started! Use arrow keys to navigate and Enter or Space to select tiles. Find matching pairs of sounds!",
+      )
+    }, 500)
   }, [])
 
-  // Speech synthesis helper
-  const speak = useCallback((text: string) => {
-    if (speechSynthRef.current) {
-      speechSynthRef.current.cancel()
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.rate = 0.9
-      utterance.pitch = 1.1
-      speechSynthRef.current.speak(utterance)
-    }
+  // Enhanced speech synthesis helper with female voice
+  const speak = useCallback((text: string, delay = 0) => {
+    setTimeout(() => {
+      if (speechSynthRef.current) {
+        speechSynthRef.current.cancel()
+        const utterance = new SpeechSynthesisUtterance(text)
+
+        // Try to get a female voice
+        const voices = speechSynthRef.current.getVoices()
+        const femaleVoice = voices.find(
+          (voice) =>
+            voice.name.toLowerCase().includes("female") ||
+            voice.name.toLowerCase().includes("woman") ||
+            voice.name.toLowerCase().includes("samantha") ||
+            voice.name.toLowerCase().includes("karen") ||
+            voice.name.toLowerCase().includes("susan") ||
+            voice.gender === "female",
+        )
+
+        if (femaleVoice) {
+          utterance.voice = femaleVoice
+        }
+
+        // Adjust voice parameters for more feminine sound
+        utterance.pitch = 1.3 // Higher pitch for female voice
+        utterance.rate = 0.85 // Slightly slower for clarity
+        utterance.volume = 0.8
+
+        speechSynthRef.current.speak(utterance)
+      }
+    }, delay)
+  }, [])
+
+  // Play position tone for a tile
+  const playPositionTone = useCallback((tileIndex: number) => {
+    if (!audioContextRef.current) return
+
+    const ctx = audioContextRef.current
+    const row = Math.floor(tileIndex / 3) + 1
+    const col = (tileIndex % 3) + 1
+
+    // Play row tone first
+    const rowOscillator = ctx.createOscillator()
+    const rowGain = ctx.createGain()
+
+    rowOscillator.connect(rowGain)
+    rowGain.connect(ctx.destination)
+
+    // Different frequencies for different rows (lower = top row)
+    const rowFrequencies = { 1: 220, 2: 330 } // A3, E4
+    rowOscillator.frequency.setValueAtTime(rowFrequencies[row as keyof typeof rowFrequencies], ctx.currentTime)
+    rowOscillator.type = "sine"
+
+    rowGain.gain.setValueAtTime(0.15, ctx.currentTime)
+    rowGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2)
+
+    rowOscillator.start(ctx.currentTime)
+    rowOscillator.stop(ctx.currentTime + 0.2)
+
+    // Play column tone after a brief pause
+    setTimeout(() => {
+      const colOscillator = ctx.createOscillator()
+      const colGain = ctx.createGain()
+
+      colOscillator.connect(colGain)
+      colGain.connect(ctx.destination)
+
+      // Different frequencies for different columns (lower = left column)
+      const colFrequencies = { 1: 440, 2: 554, 3: 659 } // A4, C#5, E5
+      colOscillator.frequency.setValueAtTime(colFrequencies[col as keyof typeof colFrequencies], ctx.currentTime)
+      colOscillator.type = "sine"
+
+      colGain.gain.setValueAtTime(0.15, ctx.currentTime)
+      colGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2)
+
+      colOscillator.start(ctx.currentTime)
+      colOscillator.stop(ctx.currentTime + 0.2)
+    }, 250)
   }, [])
 
   // Play sound for a tile
@@ -168,34 +239,57 @@ export default function SoundMatchGame() {
     }
   }, [])
 
-  // Play feedback sounds
+  // Enhanced feedback sounds with clear indicators
   const playFeedbackSound = useCallback((isCorrect: boolean) => {
     if (!audioContextRef.current) return
 
     const ctx = audioContextRef.current
-    const oscillator = ctx.createOscillator()
-    const gainNode = ctx.createGain()
-
-    oscillator.connect(gainNode)
-    gainNode.connect(ctx.destination)
 
     if (isCorrect) {
-      // Happy ascending chord
-      oscillator.frequency.setValueAtTime(523, ctx.currentTime) // C
-      oscillator.frequency.setValueAtTime(659, ctx.currentTime + 0.1) // E
-      oscillator.frequency.setValueAtTime(784, ctx.currentTime + 0.2) // G
+      // Clear success chime - ascending major chord
+      const frequencies = [523.25, 659.25, 783.99] // C5, E5, G5
+
+      frequencies.forEach((freq, index) => {
+        setTimeout(() => {
+          const oscillator = ctx.createOscillator()
+          const gainNode = ctx.createGain()
+
+          oscillator.connect(gainNode)
+          gainNode.connect(ctx.destination)
+
+          oscillator.frequency.setValueAtTime(freq, ctx.currentTime)
+          oscillator.type = "sine"
+
+          gainNode.gain.setValueAtTime(0.3, ctx.currentTime)
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8)
+
+          oscillator.start(ctx.currentTime)
+          oscillator.stop(ctx.currentTime + 0.8)
+        }, index * 100)
+      })
     } else {
-      // Gentle "try again" tone
-      oscillator.frequency.setValueAtTime(330, ctx.currentTime) // E
-      oscillator.frequency.setValueAtTime(294, ctx.currentTime + 0.2) // D
+      // Clear "try again" sound - gentle descending tones
+      const frequencies = [392, 349.23] // G4, F4
+
+      frequencies.forEach((freq, index) => {
+        setTimeout(() => {
+          const oscillator = ctx.createOscillator()
+          const gainNode = ctx.createGain()
+
+          oscillator.connect(gainNode)
+          gainNode.connect(ctx.destination)
+
+          oscillator.frequency.setValueAtTime(freq, ctx.currentTime)
+          oscillator.type = "sine"
+
+          gainNode.gain.setValueAtTime(0.25, ctx.currentTime)
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6)
+
+          oscillator.start(ctx.currentTime)
+          oscillator.stop(ctx.currentTime + 0.6)
+        }, index * 200)
+      })
     }
-
-    oscillator.type = "sine"
-    gainNode.gain.setValueAtTime(0.2, ctx.currentTime)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4)
-
-    oscillator.start(ctx.currentTime)
-    oscillator.stop(ctx.currentTime + 0.4)
   }, [])
 
   // Handle tile selection
@@ -207,12 +301,9 @@ export default function SoundMatchGame() {
       // Play the tile's sound
       playTileSound(tile.soundId)
 
-      // Announce tile position and sound after a brief delay
-      const row = Math.floor(tileIndex / 3) + 1
-      const col = (tileIndex % 3) + 1
-
+      // Play position tone after a brief delay
       setTimeout(() => {
-        speak(`Tile at row ${row}, column ${col}`)
+        playPositionTone(tileIndex)
       }, 800)
 
       setGameState((prev) => {
@@ -227,15 +318,14 @@ export default function SoundMatchGame() {
 
           setTimeout(() => {
             if (firstTile.soundId === secondTile.soundId) {
-              // Match found!
-              playFeedbackSound(true)
-              const animalNames = {
-                1: "dogs",
-                2: "cats",
-                3: "birds",
-              }
-              const animalName = animalNames[firstTile.soundId as keyof typeof animalNames]
-              speak(`Correct! You found the matching ${animalName}!`)
+              // Match found! - Delayed feedback
+              setTimeout(() => {
+                playFeedbackSound(true)
+              }, 300)
+
+              setTimeout(() => {
+                speak("Excellent! You found a matching pair!", 0)
+              }, 800)
 
               setGameState((prevState) => {
                 const updatedTiles = prevState.tiles.map((t, i) =>
@@ -247,7 +337,7 @@ export default function SoundMatchGame() {
 
                 if (gameComplete) {
                   setTimeout(() => {
-                    speak(`Congratulations! You completed the game with a score of ${newScore}! Press R to play again.`)
+                    speak(`Wonderful! You completed the game with a score of ${newScore}! Press R to play again.`, 1500)
                   }, 1000)
                 }
 
@@ -261,9 +351,14 @@ export default function SoundMatchGame() {
                 }
               })
             } else {
-              // No match
-              playFeedbackSound(false)
-              speak("Try again! Those sounds don't match.")
+              // No match - Delayed feedback
+              setTimeout(() => {
+                playFeedbackSound(false)
+              }, 300)
+
+              setTimeout(() => {
+                speak("Not quite! Try again, you can do it!", 0)
+              }, 900)
 
               setGameState((prevState) => ({
                 ...prevState,
@@ -271,7 +366,7 @@ export default function SoundMatchGame() {
                 selectedTiles: [],
               }))
             }
-          }, 1000)
+          }, 1200)
         }
 
         return {
@@ -281,7 +376,7 @@ export default function SoundMatchGame() {
         }
       })
     },
-    [gameState.tiles, gameState.selectedTiles, playTileSound, playFeedbackSound, speak],
+    [gameState.tiles, gameState.selectedTiles, playTileSound, playPositionTone, playFeedbackSound, speak],
   )
 
   // Keyboard navigation
@@ -333,9 +428,12 @@ export default function SoundMatchGame() {
         case "h":
         case "H":
           event.preventDefault()
-          speak(
-            "Sound Match Game. Use arrow keys to navigate between tiles. Press Enter or Space to select a tile and hear its sound. Find matching pairs! Press R to restart.",
-          )
+          setTimeout(() => {
+            speak(
+              "Sound Match Game. Use arrow keys to navigate between tiles. Press Enter or Space to select a tile and hear its sound. Find matching pairs! Press R to restart.",
+              0,
+            )
+          }, 200)
           break
       }
     }
@@ -420,7 +518,8 @@ export default function SoundMatchGame() {
           <li>• Screen reader compatible</li>
           <li>• Audio-first gameplay</li>
           <li>• High contrast visual indicators</li>
-          <li>• Speech synthesis announcements</li>
+          <li>• Position indicated by musical tones</li>
+          <li>• Clear audio feedback for matches</li>
         </ul>
       </div>
     </div>
